@@ -13,9 +13,12 @@
 # under the License.
 
 import logging
+import random
+import string
 
 from sushy import exceptions
 from sushy.resources import base
+from sushy.resources import common
 
 from sushy_oem_idrac.resources.manager import constants as mgr_cons
 
@@ -30,6 +33,7 @@ class ForceActionField(base.CompositeField):
 
 class ActionsField(base.CompositeField):
     reset_idrac = ForceActionField('#DelliDRACCardService.iDRACReset')
+    get_kvm_session = common.ActionField('#DelliDRACCardService.GetKVMSession')
 
 
 class DelliDRACCardService(base.ResourceBase):
@@ -80,3 +84,27 @@ class DelliDRACCardService(base.ResourceBase):
         LOG.debug('Resetting the iDRAC %s ...', self.identity)
         self._conn.post(target_uri, data=payload)
         LOG.info('The iDRAC %s is being reset', self.identity)
+
+    def get_kvm_session(self):
+        """Get temporary credentials for KVM session
+
+        The TempUsername and TempPassword fields can be used in the following
+        url template:
+        https://{host}/console?username={}&tempUsername={}&tempPassword={}
+        The username is the user used to generate these session-credentials.
+
+        :returns: Dict with the fields TempUsername and TempPassword as strings
+                  None, if the API did not return any credentials, but did not
+                  raise an error. When and why that should happen is unclear,
+                  but specifed in the API doc.
+        """
+        target_uri = self._actions.get_kvm_session.target_uri
+        LOG.debug('Getting KVM session from iDRAC %s ...', self.identity)
+
+        # SessionTypeName: A random string value upto 32 bytes.
+        name = ''.join(random.choice(string.printable) for i in range(32))
+        data = {"SessionTypeName": name}
+        result = self._conn.post(target_uri, data=data)
+        if result.status_code in (200, 201):
+            return result.json()
+        return None
