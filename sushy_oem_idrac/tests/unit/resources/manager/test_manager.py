@@ -14,10 +14,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+from http import client as http_client
 import json
 from unittest import mock
 
 from oslotest.base import BaseTestCase
+import requests
 import sushy
 from sushy.resources.manager import manager
 from sushy.taskmonitor import TaskMonitor
@@ -93,6 +95,91 @@ class ManagerTestCase(BaseTestCase):
                   '</Attribute><Attribute Name="ServerBoot.1'
                   '#FirstBootDevice">VCD-DVD</Attribute></Component>'
                   '</SystemConfiguration>'})
+
+    @mock.patch('time.sleep', autospec=True)
+    @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
+    def test_set_virtual_boot_device_cd_running_exc(self, mock_sleep):
+        oem = self.manager.get_oem_extension('Dell')
+
+        with open('sushy_oem_idrac/tests/unit/json_samples/'
+                  'error_running_job.json') as f:
+            response_obj = json.load(f)
+
+        response1 = mock.MagicMock(spec=requests.Response)
+        response1.status_code = http_client.BAD_REQUEST
+        response1.json.return_value = response_obj
+        response1.code = "IDRAC.2.8.LC068"
+
+        response2 = mock.MagicMock(spec=requests.Response)
+        response2.status_code = http_client.OK
+
+        self.conn.post.side_effect = [sushy.exceptions.HTTPError(
+            method='POST', url=self.manager.path, response=response1),
+            response2]
+
+        oem.set_virtual_boot_device(
+            sushy.VIRTUAL_MEDIA_CD, manager=self.manager)
+
+        self.conn.post.assert_called_with(
+            '/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager'
+            '.ImportSystemConfiguration',
+            data={'ShareParameters': {'Target': 'ALL'},
+                  'ImportBuffer':
+                  '<SystemConfiguration><Component FQDD="iDRAC.Embedded.1">'
+                  '<Attribute Name="ServerBoot.1#BootOnce">Enabled'
+                  '</Attribute><Attribute Name="ServerBoot.1'
+                  '#FirstBootDevice">VCD-DVD</Attribute></Component>'
+                  '</SystemConfiguration>'})
+
+    @mock.patch('sushy_oem_idrac.utils.reboot_system', autospec=True)
+    @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
+    def test_set_virtual_boot_device_cd_pending_exc(self, mock_reboot):
+        oem = self.manager.get_oem_extension('Dell')
+
+        with open('sushy_oem_idrac/tests/unit/json_samples/'
+                  'error_pending_job.json') as f:
+            response_obj = json.load(f)
+
+        response1 = mock.MagicMock(spec=requests.Response)
+        response1.status_code = http_client.BAD_REQUEST
+        response1.json.return_value = response_obj
+        response1.code = "IDRAC.2.8.LC068"
+
+        response2 = mock.MagicMock(spec=requests.Response)
+        response2.status_code = http_client.OK
+
+        self.conn.post.side_effect = [sushy.exceptions.HTTPError(
+            method='POST', url=self.manager.path, response=response1),
+            response2]
+
+        oem.set_virtual_boot_device(
+            sushy.VIRTUAL_MEDIA_CD, manager=self.manager)
+
+        self.conn.post.assert_called_with(
+            '/redfish/v1/Managers/iDRAC.Embedded.1/Actions/Oem/EID_674_Manager'
+            '.ImportSystemConfiguration',
+            data={'ShareParameters': {'Target': 'ALL'},
+                  'ImportBuffer':
+                  '<SystemConfiguration><Component FQDD="iDRAC.Embedded.1">'
+                  '<Attribute Name="ServerBoot.1#BootOnce">Enabled'
+                  '</Attribute><Attribute Name="ServerBoot.1'
+                  '#FirstBootDevice">VCD-DVD</Attribute></Component>'
+                  '</SystemConfiguration>'})
+
+    @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
+    def test_set_virtual_boot_device_cd_other_exc(self):
+        oem = self.manager.get_oem_extension('Dell')
+
+        response = mock.MagicMock(spec=requests.Response)
+        response.status_code = http_client.FORBIDDEN
+
+        self.conn.post.side_effect = sushy.exceptions.HTTPError(
+            method='POST', url=self.manager.path, response=response)
+
+        self.assertRaises(sushy.exceptions.HTTPError,
+                          oem.set_virtual_boot_device,
+                          sushy.VIRTUAL_MEDIA_CD,
+                          manager=self.manager)
 
     @mock.patch('sushy.resources.oem.common._global_extn_mgrs_by_resource', {})
     def test_get_allowed_export_target_values(self):
