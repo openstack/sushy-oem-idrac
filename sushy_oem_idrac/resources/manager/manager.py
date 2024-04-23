@@ -238,14 +238,16 @@ VFDD\
 
                 return response
 
-            except (sushy.exceptions.ServerSideError,
-                    sushy.exceptions.BadRequestError) as exc:
+            except sushy.exceptions.HTTPError as exc:
+
                 LOG.warning(
                     'Dell OEM set boot device failed (attempts left '
                     '%d): %s', attempts, exc)
 
                 errors = exc.body and exc.body.get(
                     '@Message.ExtendedInfo') or []
+
+                found = False
 
                 for error in errors:
                     message_id = error.get('MessageId')
@@ -254,6 +256,7 @@ VFDD\
                                 error.get('Message', 'Unknown error'))
 
                     if constants.IDRAC_CONFIG_PENDING in message_id:
+                        found = True
                         if not rebooted:
                             LOG.warning(
                                 'Let\'s try to turn it off and on again... '
@@ -264,10 +267,14 @@ VFDD\
                             break
 
                     elif constants.IDRAC_JOB_RUNNING in message_id:
+                        found = True
                         pass
 
                 else:
-                    time.sleep(self.RETRY_DELAY)
+                    if found:
+                        time.sleep(self.RETRY_DELAY)
+                    else:
+                        raise
 
                 if not attempts:
                     LOG.error('Too many (%d) retries, bailing '
