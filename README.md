@@ -2,7 +2,7 @@
 Dell EMC OEM extension for sushy
 ================================
 
-Sushy is a client [library](https://github.com/openstack/sushy) designed to
+[Sushy](https://opendev.org/openstack/sushy) is a library designed to
 communicate with [Redfish](https://en.wikipedia.org/wiki/Redfish_(specification))
 based BMC.
 
@@ -37,4 +37,4 @@ oem_manager.set_virtual_boot_device(
 ```
 
 See full example of virtual media boot setup in the
-[functional test suite](https://github.com/etingof/sushy-oem-idrac/blob/master/sushy_oem_idrac/tests/functional/vmedia_boot.py).
+[functional test suite](https://opendev.org/openstack/sushy-oem-idrac/src/branch/master/sushy_oem_idrac/tests/functional/vmedia_boot.py).
